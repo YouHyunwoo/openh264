@@ -52,6 +52,8 @@
 #include "measure_time.h"
 #include "d3d9_utils.h"
 
+#include "pinto.h"
+
 using namespace std;
 
 #if defined (WINDOWS_PHONE)
@@ -294,7 +296,9 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
   }
 
   printf ("------------------------------------------------------\n");
-
+  // init pinto 
+  Pinto pinto = Pinto();
+  
   fseek (pH264File, 0L, SEEK_END);
   iFileSize = (int32_t) ftell (pH264File);
   if (iFileSize <= 4) {
@@ -313,6 +317,13 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
     fprintf (stderr, "Unable to read whole file\n");
     goto label_exit;
   }
+  
+  // pinto test 
+  pinto.initBuffer(iFileSize);
+  pinto.openFile("pintoOutputFile.h264");
+  pinto.copyToBuffer(pBuf, iFileSize);
+  pinto.writeOutputFile(iFileSize);
+  pinto.closeFile();
 
   memcpy (pBuf + iFileSize, &uiStartCode[0], 4); //confirmed_safe_unsafe_usage
 

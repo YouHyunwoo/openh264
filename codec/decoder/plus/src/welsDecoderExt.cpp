@@ -271,7 +271,7 @@ long CWelsDecoder::Initialize (const SDecodingParam* pParam) {
   iRet = InitDecoder (pParam);
   if (iRet)
     return iRet;
-
+  
   return cmResultSuccess;
 }
 

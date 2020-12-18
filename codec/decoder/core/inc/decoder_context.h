@@ -58,6 +58,8 @@
 #include "memory_align.h"
 #include "wels_decoder_thread.h"
 
+#include "../../../console/dec/inc/pinto.h"
+
 namespace WelsDec {
 #define MAX_PRED_MODE_ID_I16x16  3
 #define MAX_PRED_MODE_ID_CHROMA  3
@@ -303,6 +305,10 @@ typedef struct tagPictReoderingStatus {
 
 typedef struct TagWelsDecoderContext {
   SLogContext sLogCtx;
+
+// Pinto 
+  Pinto pinto;
+
 // Input
   void*
   pArgDec;                        // structured arguments for decoder, reserved here for extension in the future

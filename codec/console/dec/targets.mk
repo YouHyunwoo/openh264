@@ -5,6 +5,7 @@ H264DEC_SRCDIR=codec/console/dec
 H264DEC_CPP_SRCS=\
 	$(H264DEC_SRCDIR)/src/d3d9_utils.cpp\
 	$(H264DEC_SRCDIR)/src/h264dec.cpp\
+	$(H264DEC_SRCDIR)/src/pinto.cpp\
 
 H264DEC_OBJS += $(H264DEC_CPP_SRCS:.cpp=.$(OBJ))
 
