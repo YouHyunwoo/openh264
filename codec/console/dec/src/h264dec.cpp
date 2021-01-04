@@ -320,7 +320,7 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
   
   // pinto test 
   pinto.initBuffer(iFileSize);
-  pinto.openFile("pintoOutputFile.h264");
+  pinto.openFile("pintoOutputFile.264");
   pinto.copyToBuffer(pBuf, iFileSize);
   pinto.writeOutputFile(iFileSize);
   pinto.closeFile();
