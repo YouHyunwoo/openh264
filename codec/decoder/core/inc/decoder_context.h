@@ -307,7 +307,7 @@ typedef struct TagWelsDecoderContext {
   SLogContext sLogCtx;
 
 // Pinto 
-  Pinto pinto;
+  Pinto* pPinto;
 
 // Input
   void*

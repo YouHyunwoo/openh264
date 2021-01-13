@@ -54,6 +54,8 @@
 #include "memory_align.h"
 #include "wels_decoder_thread.h"
 
+#include <iostream>
+
 namespace WelsDec {
 
 extern PPicture AllocPicture (PWelsDecoderContext pCtx, const int32_t kiPicWidth, const int32_t kiPicHeight);
@@ -761,6 +763,9 @@ int32_t WelsDecodeBs (PWelsDecoderContext pCtx, const uint8_t* kpBsBuf, const in
     pSrcNal    = const_cast<uint8_t*> (kpBsBuf) + iOffset;
     iSrcLength = kiBsLen - iOffset;
 
+    std::cout << "Nal Unit : " << iSrcLength << std::endl;
+    std::cout << "Offset size : " << iOffset << std::endl;
+
     if ((kiBsLen + 4) > (pRawData->pEnd - pRawData->pCurPos)) {
       pRawData->pCurPos = pRawData->pHead;
     }
@@ -815,6 +820,7 @@ int32_t WelsDecodeBs (PWelsDecoderContext pCtx, const uint8_t* kpBsBuf, const in
             CheckAndFinishLastPic (pCtx, ppDst, pDstBufInfo);
             if (pCtx->bAuReadyFlag && pCtx->pAccessUnitList->uiAvailUnitsNum != 0) {
               if (GetThreadCount (pCtx) <= 1) {
+                // how to use pDstNal ??????, can not find pDstNal parameter 
                 ConstructAccessUnit (pCtx, ppDst, pDstBufInfo);
               } else {
                 pCtx->pAccessUnitList->uiAvailUnitsNum = 1;

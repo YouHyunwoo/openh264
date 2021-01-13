@@ -50,6 +50,9 @@
 
 #include "cpu_core.h"
 
+#include <iostream>
+using namespace std;
+
 namespace WelsDec {
 
 extern void FreePicture (PPicture pPic, CMemoryAlign* pMa);
@@ -1513,6 +1516,11 @@ int32_t  WelsCalcDeqCoeffScalingList (PWelsDecoderContext pCtx) {
 }
 
 int32_t WelsDecodeSlice (PWelsDecoderContext pCtx, bool bFirstSliceInLayer, PNalUnit pNalCur) {
+  // Pinto var
+  uint8_t *pFirstPositionOfSlice = NULL;
+  uint8_t *pBufferPositionBeforeDecodeMb = NULL;
+  uint8_t copySize;
+
   PDqLayer pCurDqLayer = pCtx->pCurDqLayer;
   PFmo pFmo = pCtx->pFmo;
   int32_t iRet;
@@ -1585,10 +1593,35 @@ int32_t WelsDecodeSlice (PWelsDecoderContext pCtx, bool bFirstSliceInLayer, PNal
   pCurDqLayer->iMbY = iMbY;
   pCurDqLayer->iMbXyIndex = iNextMbXyIndex;
 
+  // copy from last copied buffer possition to curr buffer possition
+  // pFirstPostitionOfSlice = pCurDqLayer->pBitStringAux->pStartBuf;
+  pFirstPositionOfSlice = pCurDqLayer->pBitStringAux->pStartBuf;
+  
+  // I-SLICE copy order 
+  // 1. start code + nal unit first position ~ start of mb position
+  //    - first position of nal unit ~ first position of mb : 9 byte
+  // 2. each mb (cabac decode engine buffer's curr buffer)
+  
+  if(!(pSliceHeader->eSliceType == P_SLICE) && !(pSliceHeader->eSliceType == B_SLICE)){
+    cout << "1. stringaux start buff ~ cabac decode engine curr buffer : " <<  pCurDqLayer->pBitStringAux->pEndBuf- pFirstPositionOfSlice << endl;
+    
+    pBufferPositionBeforeDecodeMb = pCtx->pCabacDecEngine->pBuffCurr;
+    copySize = pBufferPositionBeforeDecodeMb - pFirstPositionOfSlice;
+    
+    pCtx->pPinto->addStartCode();
+    pCtx->pPinto->copyToBuffer(pFirstPositionOfSlice-1, copySize+1);
+  }
+
   do {
     if ((-1 == iNextMbXyIndex) || (iNextMbXyIndex >= kiCountNumMb)) { // slice group boundary or end of a frame
       break;
     }
+
+    if(!(pSliceHeader->eSliceType == P_SLICE) && !(pSliceHeader->eSliceType == B_SLICE)){
+      std::cout << "============================================" << std::endl;
+      std::cout << "do before : " <<pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
+    }
+    pBufferPositionBeforeDecodeMb = pCtx->pCabacDecEngine->pBuffCurr;
 
     pCurDqLayer->pSliceIdc[iNextMbXyIndex] = iSliceIdc;
     pCtx->bMbRefConcealed = false;
@@ -1598,8 +1631,18 @@ int32_t WelsDecodeSlice (PWelsDecoderContext pCtx, bool bFirstSliceInLayer, PNal
       return iRet;
     }
 
+    copySize = pCtx->pCabacDecEngine->pBuffCurr - pBufferPositionBeforeDecodeMb;
+
+    if(!(pSliceHeader->eSliceType == P_SLICE) && !(pSliceHeader->eSliceType == B_SLICE)){
+      pCtx->pPinto->copyToBuffer(pBufferPositionBeforeDecodeMb, copySize);
+      std::cout << "do after : " <<pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
+      std::cout << "remain in nal unit : " <<pCtx->pCabacDecEngine->pBuffEnd - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
+      std::cout << "============================================" << std::endl;
+    }
+
     ++pSlice->iTotalMbInCurSlice;
     if (uiEosFlag) { //end of slice
+
       break;
     }
     if (pSliceHeader->pPps->uiNumSliceGroups > 1) {

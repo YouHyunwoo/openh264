@@ -45,6 +45,9 @@ typedef unsigned char bool;
 
 #include "codec_app_def.h"
 #include "codec_def.h"
+#include <stdint.h>
+
+#include "../../console/dec/inc/pinto.h"
 
 #if defined(_WIN32) || defined(__cdecl)
 #define EXTAPI __cdecl
@@ -406,7 +409,23 @@ class ISVCDecoder {
       const int iSrcLen,
       unsigned char** ppDst,
       SBufferInfo* pDstInfo) = 0;
-
+  
+  /**
+  * @brief    For slice level DecodeFrame2() (4 parameters input),
+  *           whatever the function return value is, the output data
+  *           of I420 format will only be available when pDstInfo->iBufferStatus == 1,.
+  *           (e.g., in multi-slice cases, only when the whole picture
+  *           is completely reconstructed, this variable would be set equal to 1.)
+  * @param   pSrc the h264 stream to be decoded
+  * @param   iSrcLen the length of h264 stream
+  * @param   ppDst buffer pointer of decoded data (YUV)
+  * @return  0 - success; otherwise -failed;
+  */
+  virtual void EXTAPI DecodeFramePinto (const unsigned char* pSrc,
+      const int iSrcLen,
+      unsigned char** ppDst,
+      SBufferInfo* pDstInfo,
+      Pinto* pPinto) = 0;
 
   /**
   * @brief   This function gets a decoded ready frame remaining in buffers after the last frame has been decoded.

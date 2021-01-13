@@ -73,6 +73,9 @@ extern "C" {
 #include <sys/time.h>
 #endif
 
+#include <iostream>
+using namespace std;
+
 namespace WelsDec {
 
 //////////////////////////////////////////////////////////////////////
@@ -690,11 +693,13 @@ long CWelsDecoder::GetOption (DECODER_OPTION eOptID, void* pOption) {
 DECODING_STATE CWelsDecoder::DecodeFrameNoDelay (const unsigned char* kpSrc,
     const int kiSrcLen,
     unsigned char** ppDst,
-    SBufferInfo* pDstInfo) {
+    SBufferInfo* pDstInfo) {  
   int iRet = dsErrorFree;
   if (m_iThreadCount >= 1) {
+    cout << " << Decode Nodelay 1 >> " << endl;
     iRet = ThreadDecodeFrameInternal (kpSrc, kiSrcLen, ppDst, pDstInfo);
     if (m_sReoderingStatus.iNumOfPicts) {
+      cout << " << Decode Nodelay 2 >> " << endl;
       WAIT_EVENT (&m_sBufferingEvent, WELS_DEC_THREAD_WAIT_INFINITE);
       RESET_EVENT (&m_sReleaseBufferEvent);
       ReleaseBufferedReadyPicture (NULL, ppDst, pDstInfo);
@@ -704,12 +709,18 @@ DECODING_STATE CWelsDecoder::DecodeFrameNoDelay (const unsigned char* kpSrc,
   }
   //SBufferInfo sTmpBufferInfo;
   //unsigned char* ppTmpDst[3] = {NULL, NULL, NULL};
+  
+  cout << " << Decode Nodelay 3 >> " << endl;
   iRet = (int)DecodeFrame2 (kpSrc, kiSrcLen, ppDst, pDstInfo);
+  
   //memcpy (&sTmpBufferInfo, pDstInfo, sizeof (SBufferInfo));
   //ppTmpDst[0] = ppDst[0];
   //ppTmpDst[1] = ppDst[1];
   //ppTmpDst[2] = ppDst[2];
+  
+  cout << " << Decode Nodelay 4 >> " << endl;
   iRet |= DecodeFrame2 (NULL, 0, ppDst, pDstInfo);
+  
   //if ((pDstInfo->iBufferStatus == 0) && (sTmpBufferInfo.iBufferStatus == 1)) {
   //memcpy (pDstInfo, &sTmpBufferInfo, sizeof (SBufferInfo));
   //ppDst[0] = ppTmpDst[0];
@@ -719,7 +730,7 @@ DECODING_STATE CWelsDecoder::DecodeFrameNoDelay (const unsigned char* kpSrc,
   return (DECODING_STATE)iRet;
 }
 
-DECODING_STATE CWelsDecoder::DecodeFrame2WithCtx (PWelsDecoderContext pDecContext, const unsigned char* kpSrc,
+DECODING_STATE CWelsDecoder::DecodeFrame2WithCtx (PWelsDecoderContext pDecContext, const unsigned char* kpSrc,    
     const int kiSrcLen,
     unsigned char** ppDst,
     SBufferInfo* pDstInfo) {
@@ -735,6 +746,7 @@ DECODING_STATE CWelsDecoder::DecodeFrame2WithCtx (PWelsDecoderContext pDecContex
     pDecContext->iErrorCode |= dsInvalidArgument;
     return dsInvalidArgument;
   }
+  // check buffer size enough, if not, expand buffer
   if (CheckBsBuffer (pDecContext, kiSrcLen)) {
     if (ResetDecoder (pDecContext))
       return dsOutOfMemory;
@@ -910,7 +922,20 @@ DECODING_STATE CWelsDecoder::DecodeFrame2 (const unsigned char* kpSrc,
     unsigned char** ppDst,
     SBufferInfo* pDstInfo) {
   PWelsDecoderContext pDecContext = m_pDecThrCtx[0].pCtx;
+  
   return DecodeFrame2WithCtx (pDecContext, kpSrc, kiSrcLen, ppDst, pDstInfo);
+}
+// working here!
+void CWelsDecoder::DecodeFramePinto (const unsigned char* kpSrc,
+    const int kiSrcLen,
+    unsigned char** ppDst,
+    SBufferInfo* pDstInfo,
+    Pinto* pPinto) {
+  PWelsDecoderContext pDecContext = m_pDecThrCtx[0].pCtx;
+  
+  pDecContext->pPinto = pPinto;
+  
+  this->DecodeFrameNoDelay(kpSrc, kiSrcLen, ppDst, pDstInfo);
 }
 
 DECODING_STATE CWelsDecoder::FlushFrame (unsigned char** ppDst,

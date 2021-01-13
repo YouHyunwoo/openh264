@@ -46,6 +46,8 @@
 #include "bit_stream.h"
 #include "memory_align.h"
 
+#include <iostream>
+
 #define _PARSE_NALHRD_VCLHRD_PARAMS_ 1
 
 namespace WelsDec {
@@ -266,6 +268,8 @@ uint8_t* ParseNalHeader (PWelsDecoderContext pCtx, SNalUnitHeader* pNalUnitHeade
     bExtensionFlag = true;
   case NAL_UNIT_CODED_SLICE:
   case NAL_UNIT_CODED_SLICE_IDR: {
+    pCtx->pPinto->currNalisISlice = (NAL_UNIT_CODED_SLICE_IDR == pNalUnitHeader->eNalUnitType) ? true : false;
+    
     PAccessUnit pCurAu = NULL;
     uint32_t uiAvailNalNum;
     pCurNal = MemGetNextNal (&pCtx->pAccessUnitList, pCtx->pMemAlign);
@@ -379,7 +383,9 @@ uint8_t* ParseNalHeader (PWelsDecoderContext pCtx, SNalUnitHeader* pNalUnitHeade
     }
 
     pBs = &pCurAu->pNalUnitsList[uiAvailNalNum - 1]->sNalData.sVclNal.sSliceBitsRead;
-    iBitSize = (iNalSize << 3) - BsGetTrailingBits (pNal + iNalSize - 1); // convert into bit
+    iBitSize = (iNalSize << 3) - BsGetTrailingBits (pNal + iNalSize - 1); // convert into bit    
+
+    // change StringAux by Nal Unit 
     iErr = DecInitBits (pBs, pNal, iBitSize);
     if (iErr) {
       ForceClearCurrentNal (pCurAu);
@@ -429,7 +435,7 @@ uint8_t* ParseNalHeader (PWelsDecoderContext pCtx, SNalUnitHeader* pNalUnitHeade
   default:
     break;
   }
-
+  
   return pNal;
 }
 

@@ -53,6 +53,7 @@
 #include "d3d9_utils.h"
 
 #include "pinto.h"
+#include <iostream>
 
 using namespace std;
 
@@ -297,7 +298,7 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
 
   printf ("------------------------------------------------------\n");
   // init pinto 
-  Pinto pinto = Pinto();
+  Pinto pinto = Pinto();  
   
   fseek (pH264File, 0L, SEEK_END);
   iFileSize = (int32_t) ftell (pH264File);
@@ -317,17 +318,23 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
     fprintf (stderr, "Unable to read whole file\n");
     goto label_exit;
   }
-  
-  // pinto test 
-  pinto.initBuffer(iFileSize);
-  pinto.openFile("pintoOutputFile.264");
-  pinto.copyToBuffer(pBuf, iFileSize);
-  pinto.writeOutputFile(iFileSize);
-  pinto.closeFile();
+  // pinto init buffer
+  pinto.initBuffer(iFileSize, pBuf);
+  cout << "File size : " << iFileSize << endl;
+  // pinto input file copy, write outputfile test
+  // pinto.initBuffer(iFileSize, pBuf);
+  // pinto.openFile("pintoOutputFile.264");
+  // pinto.copyToBuffer(pBuf, iFileSize);
+  // pinto.writeOutputFile(iFileSize);
+  // pinto.closeFile();
 
   memcpy (pBuf + iFileSize, &uiStartCode[0], 4); //confirmed_safe_unsafe_usage
 
+  std::cout << "<<< Decode start >>>" << std::endl;
   while (true) {
+    cout << "-----------------------------loop start-----------------------------" << endl;
+    std::cout << "iBufPos : " << iBufPos << std::endl;
+    
 
     if (iBufPos >= iFileSize) {
       iEndOfStreamFlag = true;
@@ -340,11 +347,14 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
       if (fread (pInfo, 4, sizeof (int32_t), fpTrack) < 4)
         goto label_exit;
       iSliceSize = static_cast<int32_t> (pInfo[2]);
+      std::cout << "iSlicesize 1 : " << iSliceSize << std::endl;
     } else {
       if (iThreadCount >= 1) {
         uint8_t* uSpsPtr = NULL;
         int32_t iSpsByteCount = 0;
         iSliceSize = readPicture (pBuf, iFileSize, iBufPos, uSpsPtr, iSpsByteCount);
+        std::cout << "iSlicesize 2 : " << iSliceSize << std::endl;
+
         if (iLastSpsByteCount > 0 && iSpsByteCount > 0) {
           if (iSpsByteCount != iLastSpsByteCount || memcmp (uSpsPtr, uLastSpsBuf, iLastSpsByteCount) != 0) {
             //whenever new sequence is different from preceding sequence. All pending frames must be flushed out before the new sequence can start to decode.
@@ -368,8 +378,14 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
         iSliceSize = i;
       }
     }
+    std::cout << "iSlicesize 3 : " << iSliceSize << std::endl;
     if (iSliceSize < 4) { //too small size, no effective data, ignore
-      iBufPos += iSliceSize;
+      // Pinto 
+      // copy 1byte
+      pinto.copyToBuffer(pBuf+iBufPos, iSliceSize);
+
+      iBufPos += iSliceSize;      
+      cout << "-----------------------------loop continue-----------------------------" << endl;
       continue;
     }
 
@@ -397,10 +413,18 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
     uiTimeStamp ++;
     memset (&sDstBufInfo, 0, sizeof (SBufferInfo));
     sDstBufInfo.uiInBsTimeStamp = uiTimeStamp;
+    
+    
+    cout << " << Decode Ready >> " << endl;
     if (!bLegacyCalling) {
-      pDecoder->DecodeFrameNoDelay (pBuf + iBufPos, iSliceSize, pData, &sDstBufInfo);
+      cout << " << Decode nodelay >> " << endl;
+      pDecoder->DecodeFramePinto(pBuf + iBufPos, iSliceSize, pData, &sDstBufInfo, &pinto);
+      // pDecoder->DecodeFrameNoDelay (pBuf + iBufPos, iSliceSize, pData, &sDstBufInfo);
     } else {
+      cout << " << LegacyCalling >> " << endl;
+      // modify decodeframe method for pinto 
       pDecoder->DecodeFrame2 (pBuf + iBufPos, iSliceSize, pData, &sDstBufInfo);
+      
     }
 
     if (sDstBufInfo.iBufferStatus == 1) {
@@ -459,9 +483,26 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
         ++ iFrameCount;
       }
     }
+    // if curr nal unit is not IDR Slice, copy iSliceSize data from pBuf to pinto buffer
+    if(!pinto.currNalisISlice) {
+      pinto.copyToBuffer(pBuf+iBufPos, iSliceSize);
+    }
+    else{      
+      pinto.currNalisISlice = false;
+    }
+
     iBufPos += iSliceSize;
     ++ iSliceIndex;
+    cout << "-----------------------------loop end-----------------------------" << endl;
   }
+
+  std::cout << "Total copied size : " << pinto.totalCopiedSize << std::endl;
+  if(pinto.isEqual()){
+    cout<< "fully copied!" << endl;
+  }else{
+    cout<< "copied fail!" << endl;
+  }
+
   FlushFrames (pDecoder, iTotal, pYuvFile, pOptionFile, iFrameCount, uiTimeStamp, iWidth, iHeight, iLastWidth,
                iLastHeight);
   dElapsed = iTotal / 1e6;
