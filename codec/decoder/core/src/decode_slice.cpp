@@ -658,6 +658,12 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
   int32_t i;
   uint32_t uiMbType = 0, uiCbp = 0, uiCbpLuma = 0, uiCbpChroma = 0;
 
+  // Pinto var
+  uint8_t *pResidualStart = NULL;
+  uint8_t *pResidualEnd = NULL;
+  uint8_t copySize;
+  uint32_t iBitsLeft;
+
   ENFORCE_STACK_ALIGN_1D (uint8_t, pNonZeroCount, 48, 16);
 
   pCurDqLayer->pNoSubMbPartSizeLessThan8x8Flag[iMbXy] = true;
@@ -682,6 +688,8 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
     }
     return ERR_NONE;
   } else if (0 == uiMbType) { //I4x4
+    cout << " I4x4 1" << endl;
+  
     ENFORCE_STACK_ALIGN_1D (int8_t, pIntraPredMode, 48, 16);
     pCurDqLayer->pDec->pMbType[iMbXy] = MB_TYPE_INTRA4x4;
     if (pCtx->pPps->bTransform8x8ModeFlag) {
@@ -690,9 +698,11 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
     }
     if (pCtx->pCurDqLayer->pTransformSize8x8Flag[iMbXy]) {
       uiMbType = pCurDqLayer->pDec->pMbType[iMbXy] = MB_TYPE_INTRA8x8;
+      cout << " I4x4 1 -> ParseIntra8x8Mode" << endl;
       pCtx->pFillInfoCacheIntraNxNFunc (&sNeighAvail, pNonZeroCount, pIntraPredMode, pCurDqLayer);
       WELS_READ_VERIFY (ParseIntra8x8Mode (pCtx, &sNeighAvail, pIntraPredMode, pBsAux, pCurDqLayer));
     } else {
+      cout << " I4x4 1 -> ParseIntra4x4Mode" << endl;
       pCtx->pFillInfoCacheIntraNxNFunc (&sNeighAvail, pNonZeroCount, pIntraPredMode, pCurDqLayer);
       WELS_READ_VERIFY (ParseIntra4x4Mode (pCtx, &sNeighAvail, pIntraPredMode, pBsAux, pCurDqLayer));
     }
@@ -703,6 +713,8 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
     uiCbpChroma = pCtx->pSps->uiChromaFormatIdc ? uiCbp >> 4 : 0;
     uiCbpLuma = uiCbp & 15;
   } else { //I16x16;
+    cout << " I16x16 1" << endl;
+
     pCurDqLayer->pDec->pMbType[iMbXy] = MB_TYPE_INTRA16x16;
     pCurDqLayer->pTransformSize8x8Flag[iMbXy] = false;
     pCurDqLayer->pNoSubMbPartSizeLessThan8x8Flag[iMbXy] = true;
@@ -730,6 +742,14 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
     }
   }
 
+  pResidualStart = pCtx->pCabacDecEngine->pBuffCurr;
+  copySize = pResidualStart - pCtx->pPinto->pMbStart;
+  iBitsLeft = pCtx->pCabacDecEngine->iBitsLeft;
+
+  cout <<"Residual Start Point"<<endl;
+  cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;  
+  pCtx->pPinto->copyResidualToBufferWithLeftbit(pCtx->pPinto->pMbStart, copySize, iBitsLeft);
+
   if (pCurDqLayer->pCbp[iMbXy] || MB_TYPE_INTRA16x16 == pCurDqLayer->pDec->pMbType[iMbXy]) {
     memset (pCurDqLayer->pScaledTCoeff[iMbXy], 0, 384 * sizeof (pCurDqLayer->pScaledTCoeff[iMbXy][0]));
     int32_t iQpDelta, iId8x8, iId4x4;
@@ -743,11 +763,18 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
       pCurDqLayer->pChromaQp[iMbXy][i] = g_kuiChromaQpTable[WELS_CLIP3 ((pSlice->iLastMbQp +
                                          pSliceHeader->pPps->iChromaQpIndexOffset[i]), 0, 51)];
     }
+
+    // cout <<"      after QP Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
+
     if (MB_TYPE_INTRA16x16 == pCurDqLayer->pDec->pMbType[iMbXy]) {
       //step1: Luma DC
+      cout <<"Luma Start DC"<<endl;
+      cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
       WELS_READ_VERIFY (ParseResidualBlockCabac (&sNeighAvail, pNonZeroCount, pBsAux, 0, 16, g_kuiLumaDcZigzagScan,
                         I16_LUMA_DC, pCurDqLayer->pScaledTCoeff[iMbXy], pCurDqLayer->pLumaQp[iMbXy], pCtx));
       //step2: Luma AC
+      cout<<"Luma Start AC"<<endl;
+      cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
       if (uiCbpLuma) {
         for (i = 0; i < 16; i++) {
           WELS_READ_VERIFY (ParseResidualBlockCabac (&sNeighAvail, pNonZeroCount, pBsAux, i,
@@ -765,7 +792,11 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
         ST32 (&pCurDqLayer->pNzc[iMbXy][12], 0);
       }
     } else { //non-MB_TYPE_INTRA16x16
+      cout<<"Luma Start DC - non Intra 16x16"<<endl;
+      cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
       if (pCurDqLayer->pTransformSize8x8Flag[iMbXy]) {
+        cout<<"Luma Start DC - non Intra 16x16 - 8x8"<<endl;
+        cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
         // Transform 8x8 support for CABAC
         for (iId8x8 = 0; iId8x8 < 4; iId8x8++) {
           if (uiCbpLuma & (1 << iId8x8)) {
@@ -782,6 +813,8 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
         ST32 (&pCurDqLayer->pNzc[iMbXy][8], LD32 (&pNonZeroCount[1 + 8 * 3]));
         ST32 (&pCurDqLayer->pNzc[iMbXy][12], LD32 (&pNonZeroCount[1 + 8 * 4]));
       } else {
+        cout<<"Luma Start DC - non Intra 16x16 - Luma (DC and AC decoding together)"<<endl;
+        cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
         for (iId8x8 = 0; iId8x8 < 4; iId8x8++) {
           if (uiCbpLuma & (1 << iId8x8)) {
             int32_t iIdx = (iId8x8 << 2);
@@ -806,8 +839,12 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
     int32_t iMbResProperty;
     //chroma
     //step1: DC
+    cout<<"Chroma Start DC"<<endl;
+    cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
     if (1 == uiCbpChroma || 2 == uiCbpChroma) {
       //Cb Cr
+      cout<<"Chroma Start DC Cb Cr"<<endl;
+      cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
       for (i = 0; i < 2; i++) {
         iMbResProperty = i ? CHROMA_DC_V : CHROMA_DC_U;
         WELS_READ_VERIFY (ParseResidualBlockCabac (&sNeighAvail, pNonZeroCount, pBsAux, 16 + (i << 2), 4, g_kuiChromaDcScan,
@@ -816,7 +853,11 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
     }
 
     //step2: AC
+    cout<<"Chroma Start AC"<<endl;
+    cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
     if (2 == uiCbpChroma) {
+      cout<<"Chroma Start AC Cb Cr"<<endl;
+      cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
       for (i = 0; i < 2; i++) { //Cb Cr
         iMbResProperty = i ? CHROMA_AC_V : CHROMA_AC_U;
         int32_t iIdx = 16 + (i << 2);
@@ -845,6 +886,15 @@ int32_t WelsDecodeMbCabacISliceBaseMode0 (PWelsDecoderContext pCtx, uint32_t& ui
     ST32 (&pCurDqLayer->pNzc[iMbXy][16], 0);
     ST32 (&pCurDqLayer->pNzc[iMbXy][20], 0);
   }
+  
+  pResidualEnd = pCtx->pCabacDecEngine->pBuffCurr;
+  copySize = pResidualEnd - pResidualStart;
+  iBitsLeft = pCtx->pCabacDecEngine->iBitsLeft;
+  pCtx->pPinto->copyResidualToBufferWithLeftbit(pResidualStart, copySize, iBitsLeft);
+  pCtx->pPinto->isResidualcopied = true;
+
+  cout<<"Residual Block End"<<endl;
+  cout <<"      Buf pos : "<< (pCtx->pCabacDecEngine->pBuffCurr - pBsAux->pStartBuf) << ", iLeftBits : " << pCtx->pCabacDecEngine->iBitsLeft << endl;
 
   WELS_READ_VERIFY (ParseEndOfSliceCabac (pCtx, uiEosFlag));
   if (uiEosFlag) {
@@ -1618,10 +1668,12 @@ int32_t WelsDecodeSlice (PWelsDecoderContext pCtx, bool bFirstSliceInLayer, PNal
     }
 
     if(!(pSliceHeader->eSliceType == P_SLICE) && !(pSliceHeader->eSliceType == B_SLICE)){
-      std::cout << "============================================" << std::endl;
-      std::cout << "do before : " <<pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
+      std::cout << "=================== MB Start =========================" << std::endl;
+      std::cout << "mb index : "<< iNextMbXyIndex << std::endl;
+      std::cout << "before copy : " <<pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
+      pBufferPositionBeforeDecodeMb = pCtx->pCabacDecEngine->pBuffCurr;
+      pCtx->pPinto->pMbStart = pBufferPositionBeforeDecodeMb;
     }
-    pBufferPositionBeforeDecodeMb = pCtx->pCabacDecEngine->pBuffCurr;
 
     pCurDqLayer->pSliceIdc[iNextMbXyIndex] = iSliceIdc;
     pCtx->bMbRefConcealed = false;
@@ -1631,13 +1683,19 @@ int32_t WelsDecodeSlice (PWelsDecoderContext pCtx, bool bFirstSliceInLayer, PNal
       return iRet;
     }
 
-    copySize = pCtx->pCabacDecEngine->pBuffCurr - pBufferPositionBeforeDecodeMb;
-
-    if(!(pSliceHeader->eSliceType == P_SLICE) && !(pSliceHeader->eSliceType == B_SLICE)){
+    if(!(pSliceHeader->eSliceType == P_SLICE) && !(pSliceHeader->eSliceType == B_SLICE) && !(pCtx->pPinto->isResidualcopied)){
+      copySize = pCtx->pCabacDecEngine->pBuffCurr - pBufferPositionBeforeDecodeMb;
       pCtx->pPinto->copyToBuffer(pBufferPositionBeforeDecodeMb, copySize);
-      std::cout << "do after : " <<pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
-      std::cout << "remain in nal unit : " <<pCtx->pCabacDecEngine->pBuffEnd - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
-      std::cout << "============================================" << std::endl;
+      std::cout << "after copy : " <<pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart<< ", iLeftBit : "<< pCtx->pCabacDecEngine->iBitsLeft << std::endl;
+      std::cout << "total in nal unit : " <<pCtx->pCabacDecEngine->pBuffEnd - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
+      std::cout << "=================== MB End =========================" << std::endl;
+      std::cout << "" << std::endl;
+    }else if(!(pSliceHeader->eSliceType == P_SLICE) && !(pSliceHeader->eSliceType == B_SLICE) && pCtx->pPinto->isResidualcopied){
+      std::cout << "after residual copy : " <<pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart<< ", iLeftBit : "<< pCtx->pCabacDecEngine->iBitsLeft << std::endl;
+      std::cout << "total in nal unit : " <<pCtx->pCabacDecEngine->pBuffEnd - pCtx->pCabacDecEngine->pBuffStart<< std::endl;
+      std::cout << "=================== MB End =========================" << std::endl;
+      std::cout << "" << std::endl;
+      pCtx->pPinto->isResidualcopied = false;
     }
 
     ++pSlice->iTotalMbInCurSlice;

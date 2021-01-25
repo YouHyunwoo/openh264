@@ -25,19 +25,59 @@ void Pinto::initBuffer(int32_t iInputFileSize, uint8_t* inputFileBuf)
 
 void Pinto::copyToBuffer(uint8_t* src, int32_t size)
 {
+    cout << "" << endl;
     cout << "Copy to buffer : "<<  size << endl;
     
-    
-    for (size_t i = 0; i < size; i++)
-    {
-        cout << "[" << (int)src[i] << "]";
-    }
-    cout << "" << endl;
+    if(size > 0)
+    {        
+        for (size_t i = 0; i < size; i++)
+        {
+            cout << "[" << (int)src[i] << "]";
+        }
+        cout << "" << endl;
 
-    memcpy(pBufPos, src, size);
-    updateBufferPosition(pBufPos + size);
-    totalCopiedSize += size;
-    cout << "curr total copied : " << totalCopiedSize << endl;
+        memcpy(pBufPos, src, size);
+        updateBufferPosition(pBufPos + size);
+        totalCopiedSize += size;    
+        cout << "curr total copied : " << totalCopiedSize << endl;
+        cout << "" << endl;
+    }else{
+        cout << "size 0 not copied" << endl;
+        cout << "" << endl;
+    }
+    
+}
+
+void Pinto::copyResidualToBufferWithLeftbit(uint8_t* src, int32_t size, int32_t leftBit)
+{
+    cout << "" << endl;
+    cout << "Copy Residual with iLeftBit, copy size : "<<  size << endl;
+    
+    if(size > 0)
+    {
+        for (size_t i = 0; i < size; i++)
+        {
+            cout << "[" << (int)src[i] << "]";
+        }
+        cout << "" << endl;
+
+        memcpy(pBufPos, src, size);
+        updateBufferPosition(pBufPos + size);
+        totalCopiedSize += size;
+        
+        if(residualStartLeftBit == 0 && pResidualEnd == 0){
+            residualStartLeftBit = leftBit;
+        }else{
+            residualEndLeftBit = leftBit;
+        }
+        isResidualcopied = true;
+        cout << "curr total copied : " << totalCopiedSize << endl;
+        cout << "" << endl;
+    }else{
+        cout << "size 0 not copied" << endl;
+        cout << "" << endl;
+    }
+    
 }
 
 void Pinto::updateBufferPosition(uint8_t* bufPos)

@@ -763,8 +763,8 @@ int32_t WelsDecodeBs (PWelsDecoderContext pCtx, const uint8_t* kpBsBuf, const in
     pSrcNal    = const_cast<uint8_t*> (kpBsBuf) + iOffset;
     iSrcLength = kiBsLen - iOffset;
 
-    std::cout << "Nal Unit : " << iSrcLength << std::endl;
-    std::cout << "Offset size : " << iOffset << std::endl;
+    std::cout << "Nal Unit removed Startcode : " << iSrcLength << std::endl;
+    std::cout << "Startcode size : " << iOffset << std::endl;
 
     if ((kiBsLen + 4) > (pRawData->pEnd - pRawData->pCurPos)) {
       pRawData->pCurPos = pRawData->pHead;

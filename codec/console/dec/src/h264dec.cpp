@@ -417,7 +417,7 @@ void H264DecodeInstance (ISVCDecoder* pDecoder, const char* kpH264FileName, cons
     
     cout << " << Decode Ready >> " << endl;
     if (!bLegacyCalling) {
-      cout << " << Decode nodelay >> " << endl;
+      cout << " << Decode Nodelay >> " << endl;
       pDecoder->DecodeFramePinto(pBuf + iBufPos, iSliceSize, pData, &sDstBufInfo, &pinto);
       // pDecoder->DecodeFrameNoDelay (pBuf + iBufPos, iSliceSize, pData, &sDstBufInfo);
     } else {

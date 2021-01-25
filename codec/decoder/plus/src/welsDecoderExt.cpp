@@ -925,7 +925,7 @@ DECODING_STATE CWelsDecoder::DecodeFrame2 (const unsigned char* kpSrc,
   
   return DecodeFrame2WithCtx (pDecContext, kpSrc, kiSrcLen, ppDst, pDstInfo);
 }
-// working here!
+
 void CWelsDecoder::DecodeFramePinto (const unsigned char* kpSrc,
     const int kiSrcLen,
     unsigned char** ppDst,

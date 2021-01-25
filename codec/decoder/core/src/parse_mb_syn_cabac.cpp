@@ -35,6 +35,7 @@
 #include "mv_pred.h"
 #include "error_code.h"
 #include <stdio.h>
+#include <iostream>
 
 namespace WelsDec {
 #define IDX_UNUSED -1
@@ -1321,6 +1322,7 @@ int32_t ParseSignificantMapCabac (int32_t* pSignificantMap, int32_t iResProperty
   PWelsCabacCtx pLastCtx = pCtx->pCabacCtx + (iResProperty == LUMA_DC_AC_8 ? NEW_CTX_OFFSET_LAST_8x8 :
                            NEW_CTX_OFFSET_LAST) + g_kBlockCat2CtxOffsetLast[iResProperty];
 
+  SSliceHeader sSliceHeader = pCtx->pCurDqLayer->sLayerInfo.sSliceInLayer.sSliceHeaderExt.sSliceHeader;
 
   int32_t i;
   uiCoeffNum = 0;
@@ -1329,7 +1331,7 @@ int32_t ParseSignificantMapCabac (int32_t* pSignificantMap, int32_t iResProperty
 
   int32_t iCtx;
 
-  for (i = i0; i < i1; ++i) {
+  for (i = i0; i < i1; ++i) {    
     iCtx = (iResProperty == LUMA_DC_AC_8 ? g_kuiIdx2CtxSignificantCoeffFlag8x8[i] : i);
     //read significant
     WELS_READ_VERIFY (DecodeBinCabac (pCtx->pCabacDecEngine, pMapCtx + iCtx, uiCode));
@@ -1395,6 +1397,9 @@ int32_t ParseSignificantCoeffCabac (int32_t* pSignificant, int32_t iResProperty,
 int32_t ParseResidualBlockCabac8x8 (PWelsNeighAvail pNeighAvail, uint8_t* pNonZeroCountCache, SBitStringAux* pBsAux,
                                     int32_t iIndex, int32_t iMaxNumCoeff, const uint8_t* pScanTable, int32_t iResProperty,
                                     short* sTCoeff, /*int mb_mode*/ uint8_t uiQp, PWelsDecoderContext pCtx) {
+
+  // std::cout << "residual start position( 8x8 ) : "<< pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart << std::endl;
+
   uint32_t uiTotalCoeffNum = 0;
   uint32_t uiCbpBit;
   int32_t pSignificantMap[64] = {0};
@@ -1436,6 +1441,9 @@ int32_t ParseResidualBlockCabac (PWelsNeighAvail pNeighAvail, uint8_t* pNonZeroC
                                  int32_t iIndex, int32_t iMaxNumCoeff,
                                  const uint8_t* pScanTable, int32_t iResProperty, short* sTCoeff, /*int mb_mode*/ uint8_t uiQp,
                                  PWelsDecoderContext pCtx) {
+
+  // std::cout << "residual start position( basic ) : "<< pCtx->pCabacDecEngine->pBuffCurr - pCtx->pCabacDecEngine->pBuffStart << ", iLeftbit : " << pCtx->pCabacDecEngine->iBitsLeft <<std::endl;
+
   int32_t iCurNzCacheIdx;
   uint32_t uiTotalCoeffNum = 0;
   uint32_t uiCbpBit;
